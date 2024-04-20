@@ -1,0 +1,209 @@
+{
+	"name": "pl_session_round_child",
+	"properties": {
+		"activities": [
+			{
+				"name": "Web1",
+				"type": "WebActivity",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": {
+						"value": "@concat('http://ergast.com/api/f1/',pipeline().parameters.take_season_from_parents, '.json')",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "ForEach1",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Web1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Web1').output.MRData.RaceTable.races",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Web2",
+							"type": "WebActivity",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"method": "GET",
+								"url": {
+									"value": "@concat('http://ergast.com/api/f1/',pipeline().parameters.take_season_from_parents,'/',item().round,'/','results.json?limit=100')",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "set_var_round_wise",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Web2",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "round_wise_data",
+								"value": {
+									"value": "@{activity('Web2').output.MRData.RaceTable.Races}",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "act_copy_sch_season",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "set_var_round_wise",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"additionalColumns": [
+										{
+											"name": "col",
+											"value": {
+												"value": "@variables('round_wise_data')",
+												"type": "Expression"
+											}
+										}
+									],
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobStorageWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "col",
+												"type": "String"
+											},
+											"sink": {
+												"type": "String",
+												"physicalType": "String",
+												"ordinal": 1
+											}
+										}
+									],
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_web_source_year",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_sink_round_wise_data",
+									"type": "DatasetReference",
+									"parameters": {
+										"file_name_round": {
+											"value": "@item().round",
+											"type": "Expression"
+										},
+										"file_name_year": {
+											"value": "@pipeline().parameters.take_season_from_parents",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"take_season_from_parents": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"take_year_from_parents": {
+				"type": "String"
+			},
+			"round_wise_data": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "ingestion"
+		},
+		"annotations": [],
+		"lastPublishTime": "2024-04-12T04:00:55Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

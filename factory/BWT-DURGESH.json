@@ -1,0 +1,9 @@
+{
+	"name": "BWT-DURGESH",
+	"location": "southindia",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "6104be19-669e-46a3-af88-d9a41a8d20f6",
+		"tenantId": "0b4795dc-4e29-4ac7-963e-79117b89f9a7"
+	}
+}
